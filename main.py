@@ -2,20 +2,13 @@ import os
 from telegram import Update, Bot
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
 from dotenv import load_dotenv
-import google.generativeai as genai
-from send_message import send_telegram_message
 from pinterest import handle_pinterest_task
+from gemini_generator import generate_gemini_text
 
 load_dotenv()
 
-# Configure the API key for Gemini
-genai.configure(api_key=os.environ['GEN_AI_TOKEN'])
-
-# Function to generate text using Gemini AI
-def generate_gemini_text(prompt):
-    model = genai.GenerativeModel("gemini-1.5-flash")
-    response = model.generate_content(prompt)
-    return response.text.strip()
+BOT_TOKEN = os.environ['BOT_TOKEN']
+TELEGRAM_CHAT_ID = os.environ['TELEGRAM_CHAT_ID']
 
 # Function to process the caption
 def process_caption(caption):
@@ -27,13 +20,13 @@ def process_caption(caption):
     Title: <title>
     Description: <description>
     Tags: <tags>
-    Country: <country>
+    Board: <country>
     """
 
     generated_text = generate_gemini_text(prompt)
     lines = generated_text.split("\n")
     
-    title, description, tags, country = "No title", "No description", "No tags", "Unknown"
+    title, description, tags, board = "", "", "", ""
     for line in lines:
         if line.lower().startswith("title:"):
             title = line[len("Title:"):].strip()
@@ -41,10 +34,10 @@ def process_caption(caption):
             description = line[len("Description:"):].strip()
         elif line.lower().startswith("tags:"):
             tags = line[len("Tags:"):].strip()
-        elif line.lower().startswith("country:"):
-            country = line[len("Country:"):].strip()
+        elif line.lower().startswith("board:"):
+            board = line[len("Board:"):].strip()
 
-    return {"title": title, "description": description, "tags": tags, "country": country}
+    return {"title": title, "description": description, "tags": tags, "board": board}
 
 # Function to handle the /start command
 async def start(update: Update, context: CallbackContext) -> None:
@@ -52,6 +45,12 @@ async def start(update: Update, context: CallbackContext) -> None:
 
 # Function to handle video messages
 async def handle_video(update: Update, context: CallbackContext) -> None:
+
+    # Check if the user's ID matches the authorized Telegram Chat ID
+    if update.message.from_user.id != int(TELEGRAM_CHAT_ID):
+        await update.message.reply_text("You are not authorized to use this bot. Please contact the admins.")
+        return  # Stop further processing
+
     video = update.message.video
     caption = update.message.caption
 
@@ -59,6 +58,10 @@ async def handle_video(update: Update, context: CallbackContext) -> None:
         file_id = video.file_id
         file = await context.bot.get_file(file_id)
         download_url = file.file_path
+
+
+        thumbnail_file = await context.bot.get_file(video.thumbnail.file_id)
+        thumbnail_url = thumbnail_file.file_path
 
         if caption:
             # Process the caption
@@ -69,13 +72,12 @@ async def handle_video(update: Update, context: CallbackContext) -> None:
                 f"Title:  {processed_data['title']}\n\n"
                 f"Description:  {processed_data['description']}\n\n"
                 f"Tags:  {processed_data['tags']}\n\n"
-                f"Country:  {processed_data['country']}\n\n"
+                f"Board:  {processed_data['board']}\n\n"
                 f"Video Link: {download_url}"
             )
 
             # Pass the processed data and video URL to Pinterest handler
-            await send_telegram_message("Pinterest process is started")
-            await handle_pinterest_task(download_url, processed_data)
+            await handle_pinterest_task(download_url,thumbnail_url, processed_data)
 
         else:
             await update.message.reply_text("No caption provided. Unable to process the video.")
@@ -84,7 +86,6 @@ async def handle_video(update: Update, context: CallbackContext) -> None:
 
 # Main function
 def main():
-    BOT_TOKEN = os.environ['BOT_TOKEN']
     application = Application.builder().token(BOT_TOKEN).build()
 
     application.add_handler(CommandHandler("start", start))
