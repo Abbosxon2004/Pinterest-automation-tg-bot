@@ -15,7 +15,7 @@ def process_caption(caption):
     prompt = f"""
     Extract the title for a travel-related caption. Add country name to title in the last.
     Here is the caption: {caption}.
-    Also generate a description with 2-3 sentences, and 4-5 tags(without hashtags) related to that caption.
+    Also generate a description with 2-3 sentences,make it creative with beautiful emojis and 7-8 tags(with hashtags) related to that caption.
     Additionally, extract the country name from the caption and format the response as follows:
     Title: <title>
     Description: <description>
@@ -36,6 +36,7 @@ def process_caption(caption):
             tags = line[len("Tags:"):].strip()
         elif line.lower().startswith("board:"):
             board = line[len("Board:"):].strip()
+            if board == "": "Unbelievable"
 
     return {"title": title, "description": description, "tags": tags, "board": board}
 
@@ -70,8 +71,7 @@ async def handle_video(update: Update, context: CallbackContext) -> None:
             # Respond to the user
             await update.message.reply_text(
                 f"Title:  {processed_data['title']}\n\n"
-                f"Description:  {processed_data['description']}\n\n"
-                f"Tags:  {processed_data['tags']}\n\n"
+                f"Description:  {processed_data['description']} {processed_data['tags']}\n\n"
                 f"Board:  {processed_data['board']}\n\n"
                 f"Video Link: {download_url}"
             )

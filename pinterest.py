@@ -69,7 +69,7 @@ async def get_or_create_board(board_name):
 async def create_board(board):
     await send_telegram_message("New board is creating!")
 
-    prompt = f"""Generate beautiful description for this board name about traveling: {board}. Format the response as follows:
+    prompt = f"""Generate creative and beautiful description(2- sentences) for this board name about traveling: {board}. Also use creative emojis. Add 4-5 tags(with hashtag) at the ending of the description. Format the response as follows:
     Description: <description>
     """
     generated_text = generate_gemini_text(prompt)
@@ -168,7 +168,7 @@ async def upload_video_to_pinterest(telegram_video_url):
 
 
 # Create a pin on the board
-async def create_pinterest_pin(board_id, video_url,thumbnail_url, title, description, tags):
+async def create_pinterest_pin(board_id, video_url,thumbnail_url, title, description):
     await send_telegram_message("Pin is creating!")
 
     # Upload video and get media_id
@@ -181,7 +181,6 @@ async def create_pinterest_pin(board_id, video_url,thumbnail_url, title, descrip
         "board_id": board_id,
         "title": title,
         "description": description,
-        "tags": tags.split(","),
         "media_source": {
             "source_type": "video_id",  # Correct source_type for video
             "media_id": media_id,  # Media ID received from the upload
@@ -217,8 +216,7 @@ async def handle_pinterest_task(video_url,thumbnail_url, processed_data):
             video_url=video_url,
             thumbnail_url=thumbnail_url,
             title=processed_data["title"],
-            description=processed_data["description"],
-            tags=processed_data["tags"]
+            description=processed_data["description"]+"\n"+processed_data["tags"]
         )
     else:
         await send_telegram_message("Pinterest process is failed")
